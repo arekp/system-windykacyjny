@@ -1,5 +1,3 @@
-#sART
-
 = Wprowadzenie =
 == Charakterystyka projektu ==
 W dobie kryzysu finansowego Pacioli sp. z o. o. zetknęła się z problem terminowego ściągania płatności za wystawione faktury. Powodowało to zatory płatnicze firmy. Spółka powołała wtedy w ramach struktury organizacyjnej Dział Windykacji. Początkowym zadaniem był monitoring i windykacja własnych należności. Narzędziem wspomagającym obsługę działu były arkusze kalkulacyjne. Przestały jednak one spełniać swoją rolę wraz ze wzrostem ilości spraw, które obsługiwała firma. Dlatego została podjęta decyzja o zakupie nowego produktu, wspomagającego monitoring i windykację należności. 
@@ -49,5 +47,3 @@ Projektowany system zostanie podzielony na następujące podfunkcje:
 * Moduł wierzytelności
 * Moduł zadań
 * Moduł płatności
-
-
