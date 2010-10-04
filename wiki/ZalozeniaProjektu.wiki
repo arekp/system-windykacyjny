@@ -7,11 +7,11 @@ Celem firmy jest zwiększenie ściągalności należności o 60% a w następnych
 === Monitoring należności ===
 Monitoring należności prowadzony przez Pacioli sp. z o.o. polega na obsłudze należności, prowadzącej do terminowego realizowania płatności przez kontrahenta. 
 Umowa monitoringu należności obejmuje: 
-- weryfikację poprawności wystawionych faktur VAT, 
-- monitorowanie terminów płatności 
-- wyjaśnianie sporów w przypadku kwestionowania przez odbiorcę faktur VAT 
-- przypominanie kontrahentom o zbliżających się terminach zapłaty 
-- nadzorowanie wpłat 
+  * weryfikację poprawności wystawionych faktur VAT, 
+  * monitorowanie terminów płatności 
+  * wyjaśnianie sporów w przypadku kwestionowania przez odbiorcę faktur VAT 
+  * przypominanie kontrahentom o zbliżających się terminach zapłaty 
+  * nadzorowanie wpłat 
 Oferowana usługa pozwala obniżyć koszty obsługi wierzytelności z zachowaniem pozytywnych relacji handlowych. 
 
 
