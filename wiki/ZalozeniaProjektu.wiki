@@ -42,8 +42,9 @@ Postępowanie egzekucyjne:
 = Wymagania=
 
 Projektowany system zostanie podzielony na następujące podfunkcje:
-* Zarządzanie Kontrahentami
-* Moduł umowy
-* Moduł wierzytelności
-* Moduł zadań
-* Moduł płatności
+
+  * Zarządzanie Kontrahentami
+  * Moduł umowy
+  * Moduł wierzytelności
+  * Moduł zadań
+  * Moduł płatności
