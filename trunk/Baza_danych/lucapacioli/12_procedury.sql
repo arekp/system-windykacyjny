@@ -173,3 +173,310 @@ close kursor
 deallocate kursor
 
 GO
+
+/**
+Procedura maj¹ca na celu utworzenie nowego zadania przypisanego do sprawy
+ALGORYTM
+@Nazwa - nazwa kontrahenta
+@LoginPrac - login pracownika
+@NumerSprawy - numer sprawy
+@opis - Opis zadania
+@DataRealizacji - Data realizacji
+@Priorytet - Priorytet zadania
+
+Przyklad:
+exec dbo.usp_WstawZadanie 'Piotr Zaniewicz','arek','2','zadanie1','2011-03-12','3','gosc'
+
+**/
+
+USE [lucapacioli]
+GO
+
+/****** Object:  StoredProcedure [dbo].[usp_WstawZadanie]    Script Date: 01/30/2011 14:56:39 ******/
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_WstawZadanie]') AND type in (N'P', N'PC'))
+DROP PROCEDURE [dbo].[usp_WstawZadanie]
+GO
+
+
+CREATE PROCEDURE [dbo].[usp_WstawZadanie]
+@Nazwa nvarchar (250),
+@LoginPrac nvarchar (50),
+@NumerSprawy nvarchar (50),
+@opis nvarchar(max),
+@DataRealizacji datetime,
+@Priorytet nvarchar (4),
+@LoginDodajacego nvarchar (50)
+AS
+
+
+----------------------------------
+DECLARE @khPk int
+set @khPK = null
+
+-- Wyszukanie kontrahenta
+select @khPK=khPK from dbo.Kontrahent where khNazwa=@Nazwa
+
+IF (@khPK is null) 
+	BEGIN
+	PRINT '### ERROR ### Brak kontrahent do przypisania zadania ErrorCode = -1'
+	return -1
+	END
+-----------------------------------	
+DECLARE @urPK int
+set @urPK = null
+
+-- Wyszukanie pracownika
+select @urPK=urPK from dbo.Uzytkownik where urLogin=@LoginPrac
+
+IF (@urPK is null) 
+	BEGIN
+	PRINT '### ERROR ### Brak Pracownika do przypisania ErrorCode = -2'
+	return -2
+	END	
+-----------------------------------	
+DECLARE @swPK int
+set @swPK = null
+
+-- Wyszukanie Sprawy
+select @swPK=swPK from dbo.Sprawa where swNumerSprawy=@NumerSprawy
+
+IF (@swPK is null) 
+	BEGIN
+	PRINT '### ERROR ### Brak Sprawy aby przypisac zadanie ErrorCode = -3'
+	return -3
+	END	
+
+
+BEGIN TRY
+BEGIN TRANSACTION; ---------------------------------------	
+--- wstawiamyt zadania
+INSERT INTO [lucapacioli].[dbo].[Zadanie]
+           ([zakhFK]
+           ,[zaswFK]
+           ,[zaurFK]
+           ,[zaDataPlanu]
+           ,[zaDataRealizacji]
+           ,[zaslFKPriorytet]
+           ,[zaOpis]
+           ,[zaLoginDodania]
+           ,[zaDataDodania],[zaCzyZrealizowane],
+           [zaslFKTyp],[zaCzyZablokowane],[zaUsuniety]
+)
+     VALUES
+           (@khPK, @swPK,@urPK,GETDATE(),@DataRealizacji,@Priorytet,@opis,@LoginDodajacego,GETDATE(),0,'A',0,0)
+
+-- Wprwadzenie faktu dodania zadania do historii
+
+INSERT INTO [lucapacioli].[dbo].[HistoriaKontaktow]
+           ([hikhFK] -- kontrahent
+           ,[hiswFK] -- sprawa
+           ,[hiurFK] -- pracownik
+           ,[hitkFK] -- typ kontaktu s³ownikowa 6
+           ,[hiDataKontaktu] -- sysdate
+           ,[hiOpis] -- opis
+           ,[hiUsuniety] -- 0
+           ,[hiLoginDodania]
+           ,[hiDataDodania] -- sysdate
+           )
+     VALUES 
+           (@khPK,@swPK,@urPK,6,GETDATE(),@opis,0,@LoginDodajacego,GETDATE())
+
+END TRY
+BEGIN CATCH
+    IF (@@TRANCOUNT > 0) ROLLBACK TRANSACTION;
+PRINT '### ERROR ### Blad w dodawaniu zadania ErrorCode = -4'
+	RETURN -4
+END CATCH
+COMMIT TRANSACTION;------------------
+
+GO
+
+/**
+Procedura zamykajaca zadanie
+
+@IDZadania -- numer zadania do zamkniecia
+@LoginZamykajacego -- login osoby zamykajacej
+
+Przyklad
+exec dbo.usp_ZamknijZadanie numer_zadani, login_zamykajacego
+**/
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ZamknijZadanie]') AND type in (N'P', N'PC'))
+DROP PROCEDURE [dbo].[usp_ZamknijZadanie]
+GO
+
+
+CREATE PROCEDURE [dbo].[usp_ZamknijZadanie]
+@IDZadania int,
+@LoginZamykajacego nvarchar (50)
+AS
+
+----------------------------------
+DECLARE @idzad int, @khPK int, @swPK int, @urPK int
+set @idzad = null
+
+-- Wyszukanie czy istnieje zadanie i pobranie danych potrzebnych do stworzenia historii
+
+select @idzad=zaPK, @khPK=zakhFK,@swPK=zaswFK,@urPK=zaurFK from dbo.Zadanie where zaPK=@IDZadania and zaCzyZrealizowane=0
+
+IF (@idzad is null) 
+	BEGIN
+	PRINT '### ERROR ### Brak zadania do zamkniecia lub zadanie jest zamkniete ErrorCode = -1'
+	return -1
+	END
+
+
+-----------------------------------	
+DECLARE @zam int
+set @zam = null
+
+-- Wyszukanie pracownika zamykajacego zadanie
+select @zam=urPK from dbo.Uzytkownik where urLogin=@LoginZamykajacego and @urPK=urPK
+
+IF (@zam is null) 
+	BEGIN
+	PRINT '### ERROR ### Brak Pracownika zamykajacego zadanie lub zamykajacy nie jest pracownikiem przypisanym do zadania ErrorCode = -2'
+	return -2
+	END	
+	
+
+BEGIN TRY
+BEGIN TRANSACTION;
+-- zamykanie zadania
+
+UPDATE [lucapacioli].[dbo].[Zadanie]
+   SET [zaDataPlanuStop] = GETDATE()
+      ,[zaCzyZrealizowane] = 1
+      ,[zaLoginZmiany] = @LoginZamykajacego
+      ,[zaDataZmiany] = GETDATE()
+ WHERE  zaPK=@IDZadania
+ 
+ -- dodanie do hostorii zdarzen
+ INSERT INTO [lucapacioli].[dbo].[HistoriaKontaktow]
+           ([hikhFK] -- kontrahent
+           ,[hiswFK] -- sprawa
+           ,[hiurFK] -- pracownik
+           ,[hitkFK] -- typ kontaktu s³ownikowa 6
+           ,[hiDataKontaktu] -- sysdate
+           ,[hiOpis] -- opis
+           ,[hiUsuniety] -- 0
+           ,[hiLoginDodania]
+           ,[hiDataDodania] -- sysdate
+           )
+     VALUES 
+           (@khPK,@swPK,@urPK,6,GETDATE(),'Zamkniecie zadania',0,@LoginZamykajacego,GETDATE())
+
+
+END TRY
+BEGIN CATCH
+    IF (@@TRANCOUNT > 0) ROLLBACK TRANSACTION;
+PRINT '### ERROR ### Blad w zamykaniu zadania ErrorCode = -3'
+	RETURN -3
+END CATCH
+COMMIT TRANSACTION;
+
+GO
+
+/**
+Procedura automatycznie przypisujaca platnosc do splaty i bilansujaca
+WEJSC
+	@idPlatnosci - id platnosci
+	@idWierzyt - id wierzytelnosci
+	
+Przyklad
+exec dbo.usp_SplacWierzytelnosc id_platnosci,id_wierzytelnosci
+**/
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_SplacWierzytelnosc]') AND type in (N'P', N'PC'))
+DROP PROCEDURE [dbo].[usp_SplacWierzytelnosc]
+GO
+
+CREATE PROCEDURE [dbo].[usp_SplacWierzytelnosc]
+	@idPlatnosci int,
+	@idWierzyt int
+AS
+-- Przygotowanie platnosci
+DECLARE 
+@kwotaPlat decimal(18,2),@saldoPlat decimal(18,2)
+set @kwotaPlat = null
+
+-- Wyszukiwanie zadeklarowanej p³atnosci i pobranie danych do wyliczen
+select @kwotaPlat=plKwota, @saldoPlat=plSaldo from dbo.Platnosc where plPK=@idPlatnosci 
+
+IF (@kwotaPlat is null) 
+	BEGIN
+	PRINT '### ERROR ### Brak p³atnoœci do zbilansowania ErrorCode = -1'
+	return -1
+	END
+
+
+-- przygotowanie wierzytelnosc
+DECLARE 
+@kwotaWlas decimal(18,2),@saldoWierzyt decimal(18,2)
+set @kwotaWlas = null
+ -- Wyszukiwanie wierzytelnosci do zbilanswania
+ select @kwotaWlas=wiKwotaWlasciwa,@saldoWierzyt=wiSaldo from dbo.Wierzytelnosc where wiPK=@idWierzyt
+ 
+IF (@kwotaWlas is null) 
+	BEGIN
+	PRINT '### ERROR ### Brak wierzytelnosci do zbilansowania ErrorCode = -2'
+	return -2
+	END
+
+
+---- weryfikowanie wysokoœci sp³aty.
+declare
+@WysSplaty decimal(18,2)
+set @WysSplaty=0
+
+if @saldoPlat >= @saldoWierzyt
+	BEGIN
+	set @WysSplaty = @saldoWierzyt
+	END
+else 
+	BEGIN
+	set @WysSplaty = @saldoPlat
+	END
+
+BEGIN TRY
+BEGIN TRANSACTION;
+
+-- Wstawiamy splate
+INSERT INTO [lucapacioli].[dbo].[Splata]
+           ([stwiFK] -- wierzytelnosc
+           ,[stplFK] -- platnosc
+           ,[stData]
+           ,[stKwota]
+           ,[stLoginDodania]
+           ,[stDataDodania],[stWartoscOdsetek],[stUsuniety])
+     VALUES (@idWierzyt,@idPlatnosci,GETDATE(),@WysSplaty,'AUTOMAT',GETDATE(),dbo.fn_LiczOdsetki_potencjalne(@idWierzyt,GETDATE()),0)
+     
+-- poprawiamy stan p³atnosci
+
+UPDATE [lucapacioli].[dbo].[Platnosc]
+   SET 
+      [plSaldo] = (@saldoPlat - @WysSplaty)
+      ,[plLoginZmiany] = 'AUTOMAT'
+      ,[plDataZmiany] = GETDATE()
+ WHERE plPK=@idPlatnosci 
+
+-- poprawiamy stan wierzytelnosci
+
+UPDATE [lucapacioli].[dbo].[Wierzytelnosc]
+   SET 
+      [wiSaldo] = (@saldoWierzyt - @WysSplaty)
+      ,[wiLoginZmiany] = 'Automat'
+      ,[wiDataZmiany] = GETDATE()
+ WHERE wiPK=@idWierzyt
+ 
+END TRY
+BEGIN CATCH
+    IF (@@TRANCOUNT > 0) ROLLBACK TRANSACTION;
+	PRINT '### ERROR ### Problemy z wykonaniem bilansowania ErrorCode = -3'
+	RETURN -3 
+END CATCH
+COMMIT TRANSACTION;------------------
+
+
+
+GO
+
