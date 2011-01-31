@@ -1,5 +1,5 @@
 -- =============================================
--- procedury - 4 obiekty
+-- procedury - 8 obiekty
 -- =============================================
 use lucapacioli
 go
@@ -175,8 +175,9 @@ deallocate kursor
 GO
 
 /**
+==========================================================================
 Procedura maj¹ca na celu utworzenie nowego zadania przypisanego do sprawy
-ALGORYTM
+
 @Nazwa - nazwa kontrahenta
 @LoginPrac - login pracownika
 @NumerSprawy - numer sprawy
@@ -186,13 +187,9 @@ ALGORYTM
 
 Przyklad:
 exec dbo.usp_WstawZadanie 'Piotr Zaniewicz','arek','2','zadanie1','2011-03-12','3','gosc'
-
+==================================================================================
 **/
 
-USE [lucapacioli]
-GO
-
-/****** Object:  StoredProcedure [dbo].[usp_WstawZadanie]    Script Date: 01/30/2011 14:56:39 ******/
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_WstawZadanie]') AND type in (N'P', N'PC'))
 DROP PROCEDURE [dbo].[usp_WstawZadanie]
 GO
@@ -292,13 +289,15 @@ COMMIT TRANSACTION;------------------
 GO
 
 /**
-Procedura zamykajaca zadanie
+================================================================
+Procedura zamykajaca zadanie i wpisujaca zdarzenie do historii
 
 @IDZadania -- numer zadania do zamkniecia
 @LoginZamykajacego -- login osoby zamykajacej
 
 Przyklad
 exec dbo.usp_ZamknijZadanie numer_zadani, login_zamykajacego
+================================================================
 **/
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ZamknijZadanie]') AND type in (N'P', N'PC'))
 DROP PROCEDURE [dbo].[usp_ZamknijZadanie]
@@ -377,6 +376,7 @@ COMMIT TRANSACTION;
 GO
 
 /**
+=====================================================================
 Procedura automatycznie przypisujaca platnosc do splaty i bilansujaca
 WEJSC
 	@idPlatnosci - id platnosci
@@ -384,6 +384,7 @@ WEJSC
 	
 Przyklad
 exec dbo.usp_SplacWierzytelnosc id_platnosci,id_wierzytelnosci
+=====================================================================
 **/
 
 IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_SplacWierzytelnosc]') AND type in (N'P', N'PC'))
@@ -475,6 +476,87 @@ BEGIN CATCH
 	RETURN -3 
 END CATCH
 COMMIT TRANSACTION;------------------
+
+
+
+GO
+
+/**
+======================================================================
+Procedura przyjmujaca wplate z mozliwoscia bilansowania wierzytelnosci
+
+	@idKontrahenta - id kontrahenta wplacajacego
+	@kwota - kwota jaka zosta³a wpacona
+	@Nrdokumentu - nazwa dokumentu
+	@LoginDodajacego - identyfikator przyjmujacego wplate
+	@idWierzytelnosci int = null - id ewentualnej wierzytelnosci do wplacenia
+
+Przyklad
+exec dbo.usp_WprowadzPlatnosc 9,350,'dok wpl 3',arek 
+	lub 
+exec dbo.usp_WprowadzPlatnosc 9,350,'dok wpl 3',arek,12
+exec dbo.usp_WprowadzPlatnosc <idKOntrahenta>,<kwota>,<nazwa dokumentu>,<login>,<idWierzytelnosci - opcjonalne>
+==========================================================================
+**/
+
+
+IF  EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_WprowadzPlatnosc]') AND type in (N'P', N'PC'))
+DROP PROCEDURE [dbo].[usp_WprowadzPlatnosc]
+GO
+
+
+CREATE PROCEDURE [dbo].[usp_WprowadzPlatnosc]
+	@idKontrahenta int,
+	@kwota decimal(18,2),
+	@Nrdokumentu nvarchar(50), 
+	@LoginDodajacego nvarchar(50),
+	@idWierzytelnosci int = null
+AS
+
+BEGIN TRY
+-- wprowadzanie platnosci 
+INSERT INTO [lucapacioli].[dbo].[Platnosc]
+           ([plkhFK] -- kontrahent
+           ,[plNrDokumentu] -- dokument
+           ,[plData]
+           ,[plKwota]
+           ,[plSaldo]
+           ,[plUsuniety] --0
+           ,[plLoginDodania]
+           ,[plDataDodania]
+           )
+     VALUES
+           (@idKontrahenta,@Nrdokumentu,GETDATE(),@kwota,
+           @kwota,0,@LoginDodajacego,GETDATE())
+END TRY
+	BEGIN CATCH
+	-- wychwycenie ewentualnych problemow z wprowadzeniem danych
+	PRINT '### ERROR ### B³ad wprowadzania wp³aty  ErrorCode = -1'
+	    SELECT 
+        ERROR_NUMBER() AS ErrorNumber
+        ,ERROR_MESSAGE() AS ErrorMessage;
+	return -1
+	END CATCH;
+	
+-- odczytanie id platnosci	
+DECLARE @idplatnosci int
+SELECT @idplatnosci=@@IDENTITY;
+
+-- splacamy wierzytelnosc
+if @idWierzytelnosci is not null
+begin 
+
+BEGIN TRY
+    EXECUTE dbo.usp_SplacWierzytelnosc  @idplatnosci,@idWierzytelnosci
+END TRY
+BEGIN CATCH
+    SELECT 
+        ERROR_NUMBER() AS ErrorNumber
+        ,ERROR_MESSAGE() AS ErrorMessage;
+END CATCH;
+END
+else 
+PRINT '### INFO ### Brak wierzytelnosci do splacenia, wplata zosta³a wprowadzona'
 
 
 
