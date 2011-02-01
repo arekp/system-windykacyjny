@@ -50,7 +50,7 @@ deallocate c
 /* 
 =============================================
 procedura aktualizuj¹ca wartoœæ kolumny Saldo 
-w tabeli Platnosc na podstawie skojarzonych platnosci z wierzytelnosciami
+w tabeli Platnosc na podstawie skojarzonych platnosci ze sp³atami
 =============================================
 */
 GO
@@ -90,7 +90,7 @@ GO
 /* 
 =============================================
 procedura aktualizuj¹ca wartoœæ kolumny Saldo 
-w tabeli Wierzytelnosci na podstawie skojarzonych platnoœci z wierzytelnoœciami
+w tabeli Wierzytelnosci na podstawie skojarzonych splat z wierzytelnoœciami
 =============================================
 */
 if exists (select routine_name from information_schema.routines where routine_name='usp_AktualizujSaldoPlatnosci')
@@ -184,6 +184,7 @@ Procedura maj¹ca na celu utworzenie nowego zadania przypisanego do sprawy
 @opis - Opis zadania
 @DataRealizacji - Data realizacji
 @Priorytet - Priorytet zadania
+@LoginDodajacego  - osoby dodajaca
 
 Przyklad:
 exec dbo.usp_WstawZadanie 'Piotr Zaniewicz','arek','2','zadanie1','2011-03-12','3','gosc'
@@ -553,6 +554,8 @@ BEGIN CATCH
     SELECT 
         ERROR_NUMBER() AS ErrorNumber
         ,ERROR_MESSAGE() AS ErrorMessage;
+        PRINT '### ERROR ### B³¹d w wykonywaniu bilansowania  ErrorCode = -2'
+        return -2
 END CATCH;
 END
 else 

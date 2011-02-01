@@ -11,7 +11,7 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 
-CREATE VIEW [dbo].[Lista_wierzytelnosci]
+CREATE VIEW [dbo].[v_Lista_wierzytelnosci]
 AS
 SELECT     dbo.Kontrahent.khNazwa, dbo.Kontrahent.khSkrot, dbo.Kontrahent.khSymbol, dbo.Kontrahent.khNIP, dbo.Kontrahent.khREGON, 
                       dbo.Sprawa.swNumerSprawy, dbo.Wierzytelnosc.wiNumerDokumentu, dbo.Wierzytelnosc.wiDataDokumentu, dbo.Wierzytelnosc.wiKwotaWlasciwa, 
@@ -28,10 +28,10 @@ z po³aczeniem kto je bedzie wykonywa³
 **/
 
 IF  EXISTS (SELECT * FROM sys.views WHERE object_id = OBJECT_ID(N'[dbo].[vZadaniaKontrahentUser]'))
-DROP VIEW [dbo].[vZadaniaKontrahentUser]
+DROP VIEW [dbo].[v_ZadaniaKontrahentUser]
 GO
 
-CREATE VIEW [dbo].[vZadaniaKontrahentUser]
+CREATE VIEW [dbo].[v_ZadaniaKontrahentUser]
 AS
 SELECT     dbo.Kontrahent.khNazwa, dbo.Kontrahent.khPK, dbo.Kontrahent.khSkrot, dbo.Kontrahent.khCzyWierzyciel, dbo.Kontrahent.khCzyDluznik, 
                       dbo.Kontrahent.khCzyOsobaFizyczna, dbo.Zadanie.zaDataPlanu, dbo.Zadanie.zaDataPlanuStop, dbo.Zadanie.zaDataRealizacji, 
