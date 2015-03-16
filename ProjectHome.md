@@ -1,0 +1,1 @@
+Implementacja Projektu systemu windykacyjnego dla firmy Pacioli sp. z o.o. Na potrzeby pracy dyplomowej dla SPISZ 17
